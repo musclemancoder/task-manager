@@ -1,45 +1,30 @@
 const request = require('supertest')
 const app = require('../src/app')
-const jwt = require('jsonwebtoken')
-const mongoose = require('mongoose')
 const User = require('../src/models/user')
-const { response } = require('express')
+const {userOneId,userOne,setupDatabase} = require('./fixtures/db')
 
-const userOneId = new mongoose.Types.ObjectId()
+beforeEach(setupDatabase)
 
-const userOne = {
-    _id: userOneId,
-    name:'Rock',
-    email:'rocky@example.com',
-    password:'MyPass777!',
-    tokens:[{
-        token: jwt.sign({ _id: userOneId }, process.env.JWT_SECRET)
-    }]
-}
-beforeEach(async ()=>{
-    await User.deleteMany()
-    await new User(userOne).save()
-})
-
-test('Should signup new user',async()=>{
-   const response =  await request(app).post('/users').send({
-        name:'vishal',
-        email:'vishalchowdhary.ce@example.com',
-        password:'MyPass777!'
+test('Should signup a new user', async () => {
+    const response = await request(app).post('/users').send({
+        name: 'Vishal',
+        email: 'vishal@example.com',
+        password: 'MyPass777!'
     }).expect(201)
-    //Assertion that the database has been changed
+
+    // Assert that the database was changed correctly
     const user = await User.findById(response.body.user._id)
     expect(user).not.toBeNull()
 
-    //Assertion about the response
-
+    // Assertions about the response
     expect(response.body).toMatchObject({
-        user:{
-            name:'vishal',
-            email:'vishalchowdhary.ce@example.com',
+        user: {
+            name: 'Vishal',
+            email: 'vishal@example.com'
         },
-        token : user.tokens[0].token
+        token: user.tokens[0].token
     })
+    expect(user.password).not.toBe('MyPass777!')
 })
 
 test('Should login the user',async()=>{
@@ -49,14 +34,14 @@ test('Should login the user',async()=>{
     }).expect(200)
     //Assertion for user token
     const user = await User.findById(userOneId)
-    expect(user.tokens[1].token).toBe(response.body.token)
+    expect(response.body.token).toBe(user.tokens[1].token)
 
 })
 
-test('Should not login nonexistent user',async()=>{
+test('Should not login nonexistent user', async () => {
     await request(app).post('/users/login').send({
-        email:'xx@gmail.com',
-        password:userOne.password
+        email: userOne.email,
+        password: 'thisisnotmypass'
     }).expect(400)
 })
 
